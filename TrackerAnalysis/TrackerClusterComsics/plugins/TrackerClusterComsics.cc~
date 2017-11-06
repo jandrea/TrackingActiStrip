@@ -1,0 +1,215 @@
+// -*- C++ -*-
+//
+// Package:    TrackerAnalysis/TrackerClusterComsics
+// Class:      TrackerClusterComsics
+// 
+/**\class TrackerClusterComsics TrackerClusterComsics.cc TrackerAnalysis/TrackerClusterComsics/plugins/TrackerClusterComsics.cc
+   
+   Description: [one line class summary]
+   
+   Implementation:
+   [Notes on implementation]
+*/
+//
+// Original Author:  Jeremy Andrea
+//         Created:  Mon, 30 Oct 2017 10:50:05 GMT
+//
+//
+
+
+// system include files
+#include <memory>
+
+// user include files
+#include "FWCore/Framework/interface/Frameworkfwd.h"
+#include "FWCore/Framework/interface/one/EDAnalyzer.h"
+
+#include "FWCore/Framework/interface/Event.h"
+#include "FWCore/Framework/interface/MakerMacros.h"
+
+#include "FWCore/Framework/interface/EventSetup.h"
+#include "FWCore/Framework/interface/ESHandle.h"
+#include "FWCore/ParameterSet/interface/ParameterSet.h"
+
+
+#include "DataFormats/Common/interface/View.h"
+#include "DataFormats/TrackReco/interface/TrackFwd.h"
+#include "DataFormats/TrackReco/interface/Track.h"
+#include "DataFormats/TrackCandidate/interface/TrackCandidateCollection.h"
+#include "DataFormats/TrackingRecHit/interface/InvalidTrackingRecHit.h"
+
+#include "Geometry/Records/interface/TrackerDigiGeometryRecord.h"
+#include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
+#include "MagneticField/Engine/interface/MagneticField.h"
+#include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
+#include "TrackingTools/TrajectoryState/interface/TrajectoryStateTransform.h"
+#include "TrackingTools/TrajectoryState/interface/TrajectoryStateOnSurface.h"
+
+#include "TrackingTools/Records/interface/TransientRecHitRecord.h"
+#include "TrackingTools/TransientTrackingRecHit/interface/TransientTrackingRecHit.h"
+#include "TrackingTools/TransientTrackingRecHit/interface/TransientTrackingRecHitBuilder.h"
+
+#include "RecoTracker/TransientTrackingRecHit/interface/TkTransientTrackingRecHitBuilder.h"
+
+#include "TrackingTools/TransientTrack/interface/TransientTrackBuilder.h"
+#include "TrackingTools/Records/interface/TrackingComponentsRecord.h"
+
+#include "TrackingTools/Records/interface/TransientTrackRecord.h"
+
+
+//
+// class declaration
+//
+
+// If the analyzer does not use TFileService, please remove
+// the template argument to the base class so the class inherits
+// from  edm::one::EDAnalyzer<> and also remove the line from
+// constructor "usesResource("TFileService");"
+// This will improve performance in multithreaded jobs.
+
+class TrackerClusterComsics : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
+public:
+  explicit TrackerClusterComsics(const edm::ParameterSet&);
+  ~TrackerClusterComsics();
+  
+  static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
+  
+  
+private:
+  virtual void beginJob() override;
+  virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
+  virtual void endJob() override;
+  
+  // ----------member data ---------------------------
+  
+  edm::InputTag src_;
+ 
+ 
+ 
+  edm::EDGetTokenT<reco::TrackCollection> generalTracksToken_;
+ 
+  std::string ttrhbuilder_; 
+ 
+};
+
+//
+// constants, enums and typedefs
+//
+
+//
+// static data member definitions
+//
+
+//
+// constructors and destructor
+//
+TrackerClusterComsics::TrackerClusterComsics(const edm::ParameterSet& iConfig):
+  src_(iConfig.getParameter<edm::InputTag>("src")) 
+{
+  //now do what ever initialization is needed
+  usesResource("TFileService");
+  
+  generalTracksToken_ = consumes<reco::TrackCollection>(src_);
+  ttrhbuilder_ = iConfig.getParameter<std::string>("TTRHBuilder");
+}
+
+
+TrackerClusterComsics::~TrackerClusterComsics()
+{
+  
+  // do anything here that needs to be done at desctruction time
+  // (e.g. close files, deallocate resources etc.)
+  
+}
+
+
+//
+// member functions
+//
+
+// ------------ method called for each event  ------------
+void
+TrackerClusterComsics::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
+{
+  using namespace edm;
+  
+  
+  
+  edm::Handle<std::vector<reco::Track> > TracksForRes;
+  iEvent.getByToken(generalTracksToken_, TracksForRes);
+  
+  edm::ESHandle<TrackerGeometry> TG;
+  iSetup.get<TrackerDigiGeometryRecord>().get(TG);
+  const TrackerGeometry* theTrackerGeometry = TG.product();
+   
+  edm::ESHandle<TransientTrackBuilder> theB;
+  iSetup.get<TransientTrackRecord>().get( "TransientTrackBuilder", theB );
+ 
+  edm::ESHandle<TransientTrackingRecHitBuilder> theTrackerRecHitBuilder;
+  iSetup.get<TransientRecHitRecord>().get(ttrhbuilder_,theTrackerRecHitBuilder);
+  
+  
+   //get tracker geometry
+  edm::ESHandle<TrackerGeometry> pDD;
+  iSetup.get<TrackerDigiGeometryRecord>().get(pDD);
+  
+  for( reco::TrackCollection::const_iterator iTrack = TracksForRes->begin();
+    iTrack != TracksForRes->end(); ++iTrack ) {
+    double pt = iTrack->pt();
+    if( pt < 0.75 ) continue;// curls up
+    double charge = iTrack->charge();
+    reco::TransientTrack tTrack = theB->build(*iTrack);
+    TrajectoryStateOnSurface initialTSOS = tTrack.innermostMeasurementState();
+    
+    if( iTrack->extra().isNonnull() && iTrack->extra().isAvailable() ){
+      //for saving the pixel barrel hits
+      std::vector<TransientTrackingRecHit::RecHitPointer> GoodPixBarrelHits;
+      //looping through the RecHits of the track
+      for( trackingRecHit_iterator irecHit = iTrack->recHitsBegin();
+        irecHit != iTrack->recHitsEnd(); ++irecHit){
+	std::cout << __LINE__ << std::endl;
+	if( (*irecHit)->isValid() ){
+          DetId detId = (*irecHit)->geographicalId();
+	  if( detId.det() != 1)  continue;
+            // enum SubDetector{ PixelBarrel=1, PixelEndcap=2 };
+            // enum SubDetector{ TIB=3, TID=4, TOB=5, TEC=6 };
+	    uint32_t subDet = detId.subdetId();  
+	    TransientTrackingRecHit::RecHitPointer trecHit = theTrackerRecHitBuilder->build(  &*(*irecHit), initialTSOS);
+	    std::cout << __LINE__ << std::endl;
+            double gX = trecHit->globalPosition().x();
+	    std::cout << __LINE__ << std::endl;
+            double gY = trecHit->globalPosition().y();
+            double gZ = trecHit->globalPosition().z();   
+	  }
+	}
+      }
+    }
+  }
+  
+}
+
+
+// ------------ method called once each job just before starting event loop  ------------
+void 
+TrackerClusterComsics::beginJob()
+{
+}
+
+// ------------ method called once each job just after ending the event loop  ------------
+void 
+TrackerClusterComsics::endJob() 
+{
+}
+
+// ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
+void
+TrackerClusterComsics::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+  //The following says we do not know what parameters are allowed so do no validation
+  // Please change this to state exactly what you do use, even if it is no parameters
+  edm::ParameterSetDescription desc;
+  desc.setUnknown();
+  descriptions.addDefault(desc);
+}
+
+//define this as a plug-in
+DEFINE_FWK_MODULE(TrackerClusterComsics);
