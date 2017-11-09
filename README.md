@@ -16,3 +16,5 @@ scramv1 b
 cmsenv
 
 
+
+cmsRun TrackerAnalysis/TrackerClusterComsics/python/ConfFile_cfg.py
