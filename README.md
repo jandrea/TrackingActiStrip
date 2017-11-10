@@ -15,7 +15,9 @@ scramv1 b
 cmsenv
 
 cmsRun TrackerAnalysis/TrackerClusterComsics/python/ConfFile_cfg.py
+
 //to run on express stream, 
+
 cmsRun TrackerAnalysis/TrackerClusterComsics/python/ConfFileExpres_cfg.py
 
 //once the data are process, the EDAnalyzer produced a root file, that contains a TTree
@@ -23,13 +25,18 @@ cmsRun TrackerAnalysis/TrackerClusterComsics/python/ConfFileExpres_cfg.py
 //to produce histograms
 
 cd RootMacros
+
 root -l
+
 >L AnalysisMacro.C+;
+
 > AnalysisMacro.C t;
+
 >t.Loop();
 
 //it produces a files containing several histograms ?
 //to produce plots out of the histograms, you can :
+
 root -l -b DoPlots.C+
 
 
