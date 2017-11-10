@@ -135,7 +135,8 @@ private:
   //then fill information of clusters
   //attached to the tracks
   
-  int tree_Cluster_subDet[10000]; 
+  int  tree_Cluster_subDet[10000]; 
+  int tree_Cluster_PetalSide[10000];
   int tree_Cluster_LayerNbr[10000]; 
   int tree_Cluster_WheelSide[10000]; 
   double tree_Cluster_charge[10000];
@@ -153,6 +154,9 @@ private:
   float tree_Cluster_globX[10000];
   float tree_Cluster_globY[10000];
   float tree_Cluster_globZ[10000];
+  float tree_Cluster_tsosglobX[10000];
+  float tree_Cluster_tsosglobY[10000];
+  float tree_Cluster_tsosglobZ[10000];
   
   //-----------------------------
   //then fill information of clusters
@@ -211,9 +215,10 @@ TrackerClusterComsics::TrackerClusterComsics(const edm::ParameterSet& iConfig):
   //then fill information of clusters
   //attached to the tracks
   
-  smalltree->Branch("tree_Cluster_subDet",     tree_Cluster_subDet,    "tree_Cluster_subDet[tree_track_nclusters]/I"     );
-  smalltree->Branch("tree_Cluster_LayerNbr",   tree_Cluster_LayerNbr , "tree_Cluster_LayerNbr[tree_track_nclusters]/I"   );
-  smalltree->Branch("tree_Cluster_WheelSide",  tree_Cluster_WheelSide, "tree_Cluster_WheelSide[tree_track_nclusters]/I"   );
+  smalltree->Branch("tree_Cluster_subDet",        tree_Cluster_subDet,       "tree_Cluster_subDet[tree_track_nclusters]/I"     );
+  smalltree->Branch("tree_Cluster_PetalSide",     tree_Cluster_PetalSide,    "tree_Cluster_PetalSide[tree_track_nclusters]/I"  );
+  smalltree->Branch("tree_Cluster_LayerNbr",      tree_Cluster_LayerNbr ,    "tree_Cluster_LayerNbr[tree_track_nclusters]/I"   );
+  smalltree->Branch("tree_Cluster_WheelSide",     tree_Cluster_WheelSide,    "tree_Cluster_WheelSide[tree_track_nclusters]/I"  );
  
   
   smalltree->Branch("tree_Cluster_charge",     tree_Cluster_charge,    "tree_Cluster_charge[tree_track_nclusters]/D"     );
@@ -231,6 +236,9 @@ TrackerClusterComsics::TrackerClusterComsics(const edm::ParameterSet& iConfig):
   smalltree->Branch("tree_Cluster_globX", tree_Cluster_globX, "tree_Cluster_globX[tree_track_nclusters]/F" );
   smalltree->Branch("tree_Cluster_globY", tree_Cluster_globY, "tree_Cluster_globY[tree_track_nclusters]/F" );
   smalltree->Branch("tree_Cluster_globZ", tree_Cluster_globZ, "tree_Cluster_globZ[tree_track_nclusters]/F" );
+  smalltree->Branch("tree_Cluster_tsosglobX", tree_Cluster_tsosglobX, "tree_Cluster_tsosglobX[tree_track_nclusters]/F" );
+  smalltree->Branch("tree_Cluster_tsosglobY", tree_Cluster_tsosglobY, "tree_Cluster_tsosglobY[tree_track_nclusters]/F" );
+  smalltree->Branch("tree_Cluster_tsosglobZ", tree_Cluster_tsosglobZ, "tree_Cluster_tsosglobZ[tree_track_nclusters]/F" );
   
   
   //-----------------------------
@@ -368,6 +376,7 @@ TrackerClusterComsics::analyze(const edm::Event& iEvent, const edm::EventSetup& 
         const TrajectoryStateOnSurface tsos = itm->updatedState();
 	tree_Cluster_WheelSide[tree_track_nclusters] = 0;
 	tree_Cluster_detID[tree_track_nclusters] = detid;
+	tree_Cluster_PetalSide[tree_track_nclusters] = 0;
 	
 	//determine subdte id
 	if(subDet == SiStripDetId::TIB){
@@ -385,8 +394,14 @@ TrackerClusterComsics::analyze(const edm::Event& iEvent, const edm::EventSetup& 
 	} 
 	if(subDet == SiStripDetId::TEC){
 	  tree_Cluster_subDet[tree_track_nclusters] = 3; 
-	  tree_Cluster_WheelSide[tree_track_nclusters] =tTopo->tecSide(detid.rawId());
+	  tree_Cluster_WheelSide[tree_track_nclusters] = tTopo->tecSide(detid.rawId());
 	  tree_Cluster_LayerNbr[tree_track_nclusters] =tTopo->tecWheel(detid.rawId());
+	  if(tTopo->tecIsFrontPetal(detid.rawId()))  tree_Cluster_PetalSide[tree_track_nclusters] = 1;
+	  else                                       tree_Cluster_PetalSide[tree_track_nclusters] = -1;
+	  cout << "------------" << endl;
+	  cout << tree_Cluster_WheelSide[tree_track_nclusters] << endl;
+	  cout << tree_Cluster_LayerNbr[tree_track_nclusters] << endl;
+	  cout << tree_Cluster_PetalSide[tree_track_nclusters] << endl;
 	}
 	
 	
@@ -399,6 +414,10 @@ TrackerClusterComsics::analyze(const edm::Event& iEvent, const edm::EventSetup& 
 	tree_Cluster_charge[tree_track_nclusters]       = clusterInfo.charge();
 	tree_Cluster_width[tree_track_nclusters]        = cluster->amplitudes().size();
 	tree_Cluster_barycenter[tree_track_nclusters]   = cluster->barycenter();
+	
+	tree_Cluster_tsosglobX[tree_track_nclusters] = tsos.globalPosition().x();
+        tree_Cluster_tsosglobY[tree_track_nclusters] = tsos.globalPosition().y();
+        tree_Cluster_tsosglobZ[tree_track_nclusters] = tsos.globalPosition().z();
 	
 	 // cluster position ----
 	DetId clusterDetId(detid);
