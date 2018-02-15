@@ -130,7 +130,7 @@ private:
   double tree_track_phi;
   int tree_track_nhits;
   double tree_track_NChi2;
-  
+  int runNumber,eventNumber,lumiBlock; 
   
   //then fill information of clusters
   //attached to the tracks
@@ -253,8 +253,15 @@ TrackerClusterComsics::TrackerClusterComsics(const edm::ParameterSet& iConfig):
   smalltree->Branch("tree_Strips_stripGains",        tree_Strips_stripGains,        "tree_Strips_stripGains[tree_Strips_nstrip]/F"        );
   smalltree->Branch("tree_Strips_stripNoises",       tree_Strips_stripNoises,       "tree_Strips_stripNoises[tree_Strips_nstrip]/F"       );
   smalltree->Branch("tree_Strips_stripQualitiesBad", tree_Strips_stripQualitiesBad, "tree_Strips_stripQualitiesBad[tree_Strips_nstrip]/O" );
-  
-  
+  smalltree->Branch("runNumber",&runNumber,"runNumber/I");
+  smalltree->Branch("eventNumber",&eventNumber,"eventNumber/I");
+  smalltree->Branch("lumiBlock",&lumiBlock,"lumiBlock/I");
+ 
+ //  int runNumber,eventNumber,lumiBlock;
+ //
+  runNumber = 0;
+  eventNumber = 0;
+  lumiBlock = 0;
   tree_track_nclusters = 0;
   tree_track_pt = -1;
   tree_track_eta = -1;
@@ -290,7 +297,11 @@ TrackerClusterComsics::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   using namespace std;
 
 
-  
+  runNumber = iEvent.id().run();
+  std::cout << "runNumber = " << runNumber << std::endl;
+  eventNumber = iEvent.id().event();
+  lumiBlock = iEvent.luminosityBlock();
+ 
   //edm::Handle<std::vector<reco::Track> > TracksForRes;
   edm::Handle<  edm::View<reco::Track>  > TracksForRes;
   iEvent.getByToken(trackSrc_, TracksForRes);
@@ -331,7 +342,8 @@ TrackerClusterComsics::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   const TrackerTopology* const tTopo = tTopoHandle.product();
 
 
-  
+//  std::cout << "I'm doing some junk" << std::endl;
+ 
   // Loop on tracks
   for(TrajTrackAssociationCollection::const_iterator it = trajTrackAssociationHandle->begin(); it!=trajTrackAssociationHandle->end(); ++it) {
     reco::TrackRef itTrack  = it->val;
@@ -346,11 +358,11 @@ TrackerClusterComsics::analyze(const edm::Event& iEvent, const edm::EventSetup& 
     tree_track_phi   = itTrack->phi();
     tree_track_nhits = itTrack->hitPattern().numberOfValidHits();
     tree_track_NChi2 = itTrack->normalizedChi2();
-    
-    
+//    std::cout << "Found a track" << std::endl;
 
     // Loop on trajectory measurements
     for (itm=TMeas.begin();itm!=TMeas.end();itm++){
+//      std::cout << "Found a traj" << std::endl;
       const TrackingRecHit* hit = &*(*itm).recHit();
       const DetId detid = hit->geographicalId();
       int subDet = detid.subdetId();
